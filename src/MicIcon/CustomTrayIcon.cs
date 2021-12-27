@@ -1,13 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using System.Drawing;
 using System.Windows.Forms;
 using System.Diagnostics;
 using TrayIconLibrary;
 using NAudio.Wave;
 using NAudio.CoreAudioApi;
+using System.Threading;
 
 namespace MicIcon
 {
@@ -19,6 +18,7 @@ namespace MicIcon
         WaveInEvent waveIn = new WaveInEvent();
         float value = 0;
         bool recStarted = false;
+        string deviceName = "";
 
         public CustomTrayIcon()
         {
@@ -39,7 +39,7 @@ namespace MicIcon
             recStarted = true;
 
             // periodical check for changed default device
-            Timer checkDeviceTimer = new Timer();
+            var checkDeviceTimer = new System.Windows.Forms.Timer();
             checkDeviceTimer.Interval = 60 * 1000;
             checkDeviceTimer.Tick += (sender, args) => { UpdateDeviceList(); };
             checkDeviceTimer.Start();
@@ -53,6 +53,7 @@ namespace MicIcon
             var enumerator = new MMDeviceEnumerator();
             var wasapi = enumerator.GetDefaultAudioEndpoint(DataFlow.Capture, Role.Communications);
             var default_device = wasapi.FriendlyName;
+            deviceName = default_device;
 
             waveIn.DeviceNumber = -1;
             for (int n = -1; n < WaveIn.DeviceCount; n++)
@@ -62,7 +63,11 @@ namespace MicIcon
                 {
                     if (recStarted) waveIn.StopRecording();
                     waveIn.DeviceNumber = n;
-                    if (recStarted) waveIn.StartRecording();
+                    if (recStarted)
+                    {
+                        Thread.Sleep(100);
+                        waveIn.StartRecording();
+                    }
                     break;
                 }
             }
@@ -113,7 +118,7 @@ namespace MicIcon
                     graphics.DrawRectangle(new Pen(borderColor, borderWidth), 0, 0, (int)bitmap.Width - borderWidth, (int)bitmap.Height - borderWidth);
 
                     graphics.Save();
-                    ChangeIcon(bitmap, "");
+                    ChangeIcon(bitmap, deviceName);
                 }
             }
         }
