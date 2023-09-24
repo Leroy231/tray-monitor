@@ -19,7 +19,7 @@ namespace CpuIcon
         {
             settings = CustomSettings.Instance;
 
-            cpuCounter = new PerformanceCounter("Processor", "% Processor Time", "_Total");
+            cpuCounter = new PerformanceCounter("Processor Information", "% Processor Utility", "_Total");
 
             SetUpdateInterval(settings.updateInterval);
             EnableIcon();

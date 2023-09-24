@@ -291,3 +291,6 @@ __pycache__/
 
 
 /test/
+
+.DS_Store
+Thumbs.db
