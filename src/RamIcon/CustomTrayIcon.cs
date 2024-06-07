@@ -52,39 +52,72 @@ namespace RamIcon
             Color backgroundColor = settings.backgroundColor;
             Color borderColor = settings.borderColor;
 
-            int pointWidth = WidthSingleMeasurement();
+            float memLoad, memAvailable, memTotal;
+            GetRamLoad(out memLoad, out memAvailable, out memTotal);
 
-            int iconSize = GetTrayIconsSize();
-            using (Bitmap bitmap = new Bitmap(iconSize, iconSize))
+            float gbUsed = (memTotal - memAvailable) / 1073741824;
+            using (Bitmap bitmap = new Bitmap(DrawText(gbUsed.ToString("F0"), new Font("Microsoft Sans Serif", 14, FontStyle.Bold), foregroundColor, backgroundColor, borderColor)))
             {
-                using (Graphics graphics = Graphics.FromImage(bitmap))
+                string tooltip = String.Format("RAM:\n{1:F1} / {2:F1} GB ({0:F0}%)", memLoad, (memTotal - memAvailable) / 1073741824, memTotal / 1073741824);
+                ChangeIcon(bitmap, tooltip);
+            }
+        }
+
+        private Image DrawText(String text, Font font, Color textColor, Color backColor, Color borderColor)
+        {
+            var textSize = GetImageSize(text, font);
+            int iconSize = GetTrayIconsSize();
+            Image image = new Bitmap(iconSize, iconSize);
+            using (Graphics graphics = Graphics.FromImage(image))
+            {
+                // paint the background
+                graphics.Clear(backColor);
+
+                // create a brush for the text
+                using (Brush textBrush = new SolidBrush(textColor))
                 {
-                    graphics.Clear(backgroundColor);
-
-                    float memLoad, memAvailable, memTotal;
-                    GetRamLoad(out memLoad, out memAvailable, out memTotal);
-                    measurents.Add(memLoad);
-                    if (measurents.Count > bitmap.Width / pointWidth)
-                    {
-                        measurents.RemoveAt(0);
-                    }
-
-                    for (int i=measurents.Count-1; i>=0; i--)
-                    {
-                        float value = measurents[i];
-                        var pos = bitmap.Width - (measurents.Count - 1 - i) * pointWidth;
-                        graphics.DrawLine(new Pen(foregroundColor, pointWidth), pos, bitmap.Height, pos, bitmap.Height - bitmap.Height * value / 100);
-                    }
-
                     int borderWidth = 1;
-                    graphics.DrawRectangle(new Pen(borderColor, borderWidth), 0, 0, (int)bitmap.Width - borderWidth, (int)bitmap.Height - borderWidth);
+                    graphics.DrawRectangle(new Pen(borderColor, borderWidth), 0, 0, (int)image.Width - borderWidth, (int)image.Height - borderWidth);
 
+                    graphics.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAlias;
+
+                    float xScale = 1;
+                    float yScale = 1;
+                    int allowedCrop = 1;
+                    if (text.Length == 1)
+                    {
+                        // with defaut size digit shifted to the left
+                        textSize.Width = (float)(textSize.Width * 0.7);
+                        // draw single digit with same width as 2 digits
+                        var textSizeForScale = GetImageSize("99", font);
+                        xScale = (iconSize + 2 * allowedCrop) / textSizeForScale.Width;
+                        yScale = (iconSize + 2 * allowedCrop) / textSizeForScale.Height;
+                    }
+                    else
+                    {
+                        xScale = (iconSize + 2 * allowedCrop) / textSize.Width;
+                        yScale = (iconSize + 2 * allowedCrop) / textSize.Height;
+                    }
+                    graphics.ScaleTransform(xScale, yScale);
+                    float xPos = (image.Width + 2 * allowedCrop - textSize.Width * xScale) / 2 - allowedCrop;
+                    float yPos = (image.Height + 2 * allowedCrop - textSize.Height * yScale) / 2;
+                    // move "100" to left, because '1' thinner than '0'
+                    if (text.Length == 3)
+                    {
+                        xPos -= iconSize / 14;
+                    }
+                    graphics.DrawString(text, font, textBrush, xPos, yPos);
                     graphics.Save();
-                    string tooltip = String.Format("RAM:\n{1:F1} / {2:F1} GB ({0:F0}%)", memLoad, (memTotal - memAvailable) / 1073741824, memTotal / 1073741824);
-                    ChangeIcon(bitmap, tooltip);
-                    //SetIcon(bitmap);
                 }
             }
+            return image;
+        }
+
+        private static SizeF GetImageSize(string text, Font font)
+        {
+            using (Image image = new Bitmap(1, 1))
+            using (Graphics graphics = Graphics.FromImage(image))
+                return graphics.MeasureString(text, font);
         }
 
         public override void IconHovered()
